@@ -12,6 +12,7 @@ import {
   Sparkles,
   CalendarDays,
   Users,
+  Contact,
   LogOut,
   Menu,
   X,
@@ -23,6 +24,7 @@ const NAV = [
   { href: "/cuadre", label: "Cuadre diario", icon: Wallet, adminOnly: false },
   { href: "/inventario", label: "Inventario", icon: Boxes, adminOnly: false },
   { href: "/servicios", label: "Servicios", icon: Sparkles, adminOnly: false },
+  { href: "/clientes", label: "Clientes", icon: Contact, adminOnly: false },
   { href: "/calendario", label: "Calendario", icon: CalendarDays, adminOnly: false },
   { href: "/usuarios", label: "Usuarios", icon: Users, adminOnly: true },
 ];

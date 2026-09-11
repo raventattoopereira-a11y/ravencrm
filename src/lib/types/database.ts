@@ -43,6 +43,8 @@ export interface Client {
   name: string;
   phone: string | null;
   email: string | null;
+  birthday: string | null;
+  instagram: string | null;
   notes: string | null;
   created_at: string;
 }
