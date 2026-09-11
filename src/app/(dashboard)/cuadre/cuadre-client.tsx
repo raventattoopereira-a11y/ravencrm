@@ -68,6 +68,11 @@ export function CuadreClient({
   const [clientQuery, setClientQuery] = useState("");
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [creatingClient, setCreatingClient] = useState(false);
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientBirthday, setNewClientBirthday] = useState("");
+  const [newClientInstagram, setNewClientInstagram] = useState("");
   const clientBlurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filteredClients = useMemo(() => {
@@ -82,22 +87,45 @@ export function CuadreClient({
     setClientId(c.id);
     setClientQuery(c.name);
     setClientDropdownOpen(false);
+    setShowNewClientForm(false);
   }
 
-  async function createClientInline() {
+  function resetNewClientForm() {
+    setNewClientPhone("");
+    setNewClientEmail("");
+    setNewClientBirthday("");
+    setNewClientInstagram("");
+  }
+
+  function openNewClientForm() {
+    setClientDropdownOpen(false);
+    resetNewClientForm();
+    setShowNewClientForm(true);
+  }
+
+  async function submitNewClient(e: React.FormEvent) {
+    e.preventDefault();
     const name = clientQuery.trim();
     if (!name) return;
     setCreatingClient(true);
+    setError(null);
     try {
       const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({
+          name,
+          phone: newClientPhone || null,
+          email: newClientEmail || null,
+          birthday: newClientBirthday || null,
+          instagram: newClientInstagram || null,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "No se pudo crear el cliente");
       setClients((prev) => [...prev, json.data].sort((a, b) => a.name.localeCompare(b.name)));
       selectClient(json.data);
+      resetNewClientForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado creando el cliente");
     } finally {
@@ -156,6 +184,8 @@ export function CuadreClient({
     setClientId("");
     setClientQuery("");
     setClientDropdownOpen(false);
+    setShowNewClientForm(false);
+    resetNewClientForm();
     setServiceId("");
     setItems([]);
   }
@@ -417,20 +447,91 @@ export function CuadreClient({
                     {clientQuery.trim() && !exactClientMatch && (
                       <button
                         type="button"
-                        disabled={creatingClient}
-                        onClick={createClientInline}
-                        className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm text-accent hover:bg-surface-2 disabled:opacity-60"
+                        onClick={openNewClientForm}
+                        className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm text-accent hover:bg-surface-2"
                       >
                         <UserPlus size={14} />
-                        {creatingClient
-                          ? "Creando…"
-                          : `Agregar “${clientQuery.trim()}” como cliente nuevo`}
+                        {`Agregar “${clientQuery.trim()}” como cliente nuevo`}
                       </button>
                     )}
                   </div>
                 )}
               </div>
             </div>
+
+            {showNewClientForm && (
+              <div className="rounded-lg border border-border bg-surface-2 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium">
+                    Nuevo cliente: <span className="text-accent">{clientQuery.trim()}</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewClientForm(false);
+                      resetNewClientForm();
+                    }}
+                    className="text-muted hover:text-foreground"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <Label>Teléfono</Label>
+                    <Input
+                      value={newClientPhone}
+                      onChange={(e) => setNewClientPhone(e.target.value)}
+                      placeholder="300 000 0000"
+                    />
+                  </div>
+                  <div>
+                    <Label>Fecha de cumpleaños</Label>
+                    <Input
+                      type="date"
+                      value={newClientBirthday}
+                      onChange={(e) => setNewClientBirthday(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Correo</Label>
+                    <Input
+                      type="email"
+                      value={newClientEmail}
+                      onChange={(e) => setNewClientEmail(e.target.value)}
+                      placeholder="correo@ejemplo.com"
+                    />
+                  </div>
+                  <div>
+                    <Label>Instagram</Label>
+                    <Input
+                      value={newClientInstagram}
+                      onChange={(e) => setNewClientInstagram(e.target.value)}
+                      placeholder="@usuario"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button type="button" size="sm" disabled={creatingClient} onClick={submitNewClient}>
+                    {creatingClient ? "Guardando…" : "Guardar cliente"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowNewClientForm(false);
+                      resetNewClientForm();
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-muted">
+                  Todos estos campos son opcionales, solo el nombre es obligatorio.
+                </p>
+              </div>
+            )}
 
             <div>
               <Label>Descripción</Label>
