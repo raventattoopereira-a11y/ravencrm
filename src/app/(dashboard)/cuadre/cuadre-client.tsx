@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Button, Card, CardTitle, Input, Label, Select, Textarea, Badge } from "@/components/ui/primitives";
 import { formatCOP } from "@/lib/utils";
 import type { Client, PaymentMethod, Product, Service } from "@/lib/types/database";
+import { ARTISTS } from "@/lib/artists";
 import { Plus, Trash2, Lock, Unlock, X, UserPlus, Check } from "lucide-react";
 
 interface TxRow {
@@ -17,6 +18,7 @@ interface TxRow {
   payment_method: { name: string } | null;
   service: { name: string; type: string } | null;
   client: { name: string } | null;
+  performed_by: string | null;
   items: { id: string; quantity: number; product: { name: string } | null }[];
 }
 
@@ -61,6 +63,7 @@ export function CuadreClient({
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [serviceId, setServiceId] = useState("");
+  const [performedBy, setPerformedBy] = useState("");
   const [items, setItems] = useState<ItemDraft[]>([]);
 
   const [clients, setClients] = useState<Client[]>(initialClients);
@@ -187,6 +190,7 @@ export function CuadreClient({
     setShowNewClientForm(false);
     resetNewClientForm();
     setServiceId("");
+    setPerformedBy("");
     setItems([]);
   }
 
@@ -204,6 +208,10 @@ export function CuadreClient({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (type === "ingreso" && !performedBy) {
+      setError("Selecciona quién realizó el procedimiento.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -219,6 +227,7 @@ export function CuadreClient({
           client_id: clientId || null,
           client_name: clientId ? null : clientQuery.trim() || null,
           service_id: serviceId || null,
+          performed_by: type === "ingreso" ? performedBy || null : null,
           transaction_date: date,
           items: consumesInventory
             ? items.filter((it) => it.product_id && it.quantity > 0)
@@ -398,6 +407,19 @@ export function CuadreClient({
                     {services.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+              {type === "ingreso" && (
+                <div>
+                  <Label>Responsable del procedimiento</Label>
+                  <Select required value={performedBy} onChange={(e) => setPerformedBy(e.target.value)}>
+                    <option value="">Selecciona quién lo realizó…</option>
+                    {ARTISTS.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
                       </option>
                     ))}
                   </Select>
@@ -618,6 +640,7 @@ export function CuadreClient({
                   <th className="py-2 pr-3">Categoría</th>
                   <th className="py-2 pr-3">Cliente</th>
                   <th className="py-2 pr-3">Servicio</th>
+                  <th className="py-2 pr-3">Responsable</th>
                   <th className="py-2 pr-3">Productos</th>
                   <th className="py-2 pr-3"></th>
                 </tr>
@@ -633,6 +656,7 @@ export function CuadreClient({
                     <td className="py-2 pr-3 text-muted">{t.category ?? "—"}</td>
                     <td className="py-2 pr-3 text-muted">{t.client?.name ?? "—"}</td>
                     <td className="py-2 pr-3 text-muted">{t.service?.name ?? "—"}</td>
+                    <td className="py-2 pr-3 text-muted">{t.performed_by ?? "—"}</td>
                     <td className="py-2 pr-3 text-muted">
                       {t.items.length > 0
                         ? t.items.map((it) => `${it.product?.name} ×${it.quantity}`).join(", ")

@@ -17,6 +17,7 @@ const bodySchema = z.object({
   client_id: z.string().uuid().nullable().optional(),
   client_name: z.string().max(160).nullable().optional(),
   service_id: z.string().uuid().nullable().optional(),
+  performed_by: z.string().min(1).max(160).nullable().optional(),
   transaction_date: z.string(),
   items: z.array(itemSchema).optional().default([]),
 });
@@ -55,6 +56,13 @@ export async function POST(request: NextRequest) {
   }
   const body = parsed.data;
 
+  if (body.type === "ingreso" && !body.performed_by) {
+    return NextResponse.json(
+      { error: "Selecciona quién realizó el procedimiento." },
+      { status: 400 }
+    );
+  }
+
   let clientId: string | null = body.client_id ?? null;
   if (!clientId && body.client_name && body.client_name.trim()) {
     const name = body.client_name.trim();
@@ -86,6 +94,7 @@ export async function POST(request: NextRequest) {
       description: body.description ?? null,
       client_id: clientId,
       service_id: body.service_id ?? null,
+      performed_by: body.type === "ingreso" ? body.performed_by ?? null : null,
       transaction_date: body.transaction_date,
       created_by: user.id,
     })
