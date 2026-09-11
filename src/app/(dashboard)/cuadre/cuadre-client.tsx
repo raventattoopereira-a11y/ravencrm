@@ -308,7 +308,16 @@ export function CuadreClient({
               {type === "ingreso" && (
                 <div>
                   <Label>Servicio (opcional)</Label>
-                  <Select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+                  <Select
+                    value={serviceId}
+                    onChange={(e) => {
+                      const newServiceId = e.target.value;
+                      setServiceId(newServiceId);
+                      const service = services.find((s) => s.id === newServiceId);
+                      // Autocompleta el monto con el precio base del servicio; el usuario aún puede editarlo.
+                      if (service) setAmount(String(service.base_price));
+                    }}
+                  >
                     <option value="">Ninguno</option>
                     {services.map((s) => (
                       <option key={s.id} value={s.id}>
