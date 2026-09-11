@@ -3,9 +3,9 @@
 
 export type Role = "admin" | "empleado";
 export type TransactionType = "ingreso" | "egreso";
-export type ServiceType = "perforacion" | "tatuaje" | "otro";
+export type ServiceType = "perforacion" | "tatuaje" | "joyeria" | "otro";
 export type ClosureStatus = "abierto" | "cerrado";
-export type MovementReason = "venta" | "compra" | "ajuste" | "perforacion" | "egreso_inicial";
+export type MovementReason = "venta" | "compra" | "ajuste" | "perforacion" | "joyeria" | "egreso_inicial";
 
 export interface Profile {
   id: string;

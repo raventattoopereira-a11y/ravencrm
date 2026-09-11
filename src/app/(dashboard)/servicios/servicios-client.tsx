@@ -8,6 +8,7 @@ import { Plus } from "lucide-react";
 
 const TYPE_LABEL: Record<ServiceType, string> = {
   perforacion: "Perforación",
+  joyeria: "Joyería",
   tatuaje: "Tatuaje",
   otro: "Otro",
 };
@@ -61,7 +62,7 @@ export function ServiciosClient({ initialServices }: { initialServices: Service[
         <div>
           <h1 className="text-xl font-semibold">Servicios</h1>
           <p className="text-sm text-muted">
-            Catálogo usado en el cuadre diario. Marca un servicio como “Perforación” para poder descontar inventario.
+            Catálogo usado en el cuadre diario. Los tipos “Perforación” y “Joyería” permiten descontar inventario.
           </p>
         </div>
         <Button onClick={() => setShowForm((v) => !v)}>
@@ -84,6 +85,7 @@ export function ServiciosClient({ initialServices }: { initialServices: Service[
               <Label>Tipo</Label>
               <Select value={type} onChange={(e) => setType(e.target.value as ServiceType)}>
                 <option value="perforacion">Perforación</option>
+                <option value="joyeria">Joyería</option>
                 <option value="tatuaje">Tatuaje</option>
                 <option value="otro">Otro</option>
               </Select>

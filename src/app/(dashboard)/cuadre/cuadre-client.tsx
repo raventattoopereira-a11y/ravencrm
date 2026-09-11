@@ -63,7 +63,8 @@ export function CuadreClient({
   const [items, setItems] = useState<ItemDraft[]>([]);
 
   const selectedService = services.find((s) => s.id === serviceId);
-  const isPerforacion = selectedService?.type === "perforacion";
+  // Perforación and Joyería both consume inventory items picked manually below.
+  const consumesInventory = selectedService?.type === "perforacion" || selectedService?.type === "joyeria";
 
   const loadDay = useCallback(async (d: string) => {
     setLoading(true);
@@ -143,7 +144,7 @@ export function CuadreClient({
           client_name: clientName || null,
           service_id: serviceId || null,
           transaction_date: date,
-          items: isPerforacion
+          items: consumesInventory
             ? items.filter((it) => it.product_id && it.quantity > 0)
             : [],
         }),
@@ -333,10 +334,10 @@ export function CuadreClient({
               />
             </div>
 
-            {isPerforacion && (
+            {consumesInventory && (
               <div className="rounded-lg border border-border bg-surface-2 p-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-medium">Productos usados en la perforación</p>
+                  <p className="text-sm font-medium">Productos que se descuentan del inventario</p>
                   <Button type="button" size="sm" variant="secondary" onClick={addItemRow}>
                     <Plus size={14} /> Agregar producto
                   </Button>

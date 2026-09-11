@@ -124,7 +124,7 @@ create table if not exists public.clients (
 create table if not exists public.services (
   id          uuid primary key default gen_random_uuid(),
   name        text not null,
-  type        text not null check (type in ('perforacion', 'tatuaje', 'otro')),
+  type        text not null check (type in ('perforacion', 'tatuaje', 'joyeria', 'otro')),
   base_price  numeric not null default 0,
   is_active   boolean not null default true
 );
@@ -168,7 +168,7 @@ create table if not exists public.inventory_movements (
   id                       uuid primary key default gen_random_uuid(),
   product_id               uuid not null references public.products (id),
   quantity_change          numeric not null, -- negative = salida, positive = entrada
-  reason                   text not null check (reason in ('venta', 'compra', 'ajuste', 'perforacion', 'egreso_inicial')),
+  reason                   text not null check (reason in ('venta', 'compra', 'ajuste', 'perforacion', 'joyeria', 'egreso_inicial')),
   reference_transaction_id uuid references public.transactions (id),
   notes                    text,
   created_by               uuid references public.profiles (id),
@@ -192,7 +192,11 @@ begin
   left join public.services s on s.id = t.service_id
   where t.id = new.transaction_id;
 
-  v_reason := case when v_service_type = 'perforacion' then 'perforacion' else 'venta' end;
+  v_reason := case
+    when v_service_type = 'perforacion' then 'perforacion'
+    when v_service_type = 'joyeria' then 'joyeria'
+    else 'venta'
+  end;
 
   update public.products
   set stock_quantity = stock_quantity - new.quantity
