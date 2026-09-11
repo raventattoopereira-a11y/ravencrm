@@ -1,13 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/utils";
 import { CuadreClient } from "./cuadre-client";
-import type { PaymentMethod, Product, Service } from "@/lib/types/database";
+import type { Client, PaymentMethod, Product, Service } from "@/lib/types/database";
 
 export default async function CuadrePage() {
   const supabase = await createClient();
   const today = todayISO();
 
-  const [{ data: paymentMethods }, { data: services }, { data: products }] = await Promise.all([
+  const [{ data: paymentMethods }, { data: services }, { data: products }, { data: clients }] = await Promise.all([
     supabase.from("payment_methods").select("*").eq("is_active", true).order("sort_order") as unknown as Promise<{
       data: PaymentMethod[] | null;
     }>,
@@ -19,6 +19,7 @@ export default async function CuadrePage() {
       .select("*")
       .eq("is_active", true)
       .order("name") as unknown as Promise<{ data: Product[] | null }>,
+    supabase.from("clients").select("*").order("name") as unknown as Promise<{ data: Client[] | null }>,
   ]);
 
   return (
@@ -27,6 +28,7 @@ export default async function CuadrePage() {
       paymentMethods={paymentMethods ?? []}
       services={services ?? []}
       products={products ?? []}
+      initialClients={clients ?? []}
     />
   );
 }

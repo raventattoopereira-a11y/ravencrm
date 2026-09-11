@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Button, Card, CardTitle, Input, Label, Select, Textarea, Badge } from "@/components/ui/primitives";
 import { formatCOP } from "@/lib/utils";
-import type { PaymentMethod, Product, Service } from "@/lib/types/database";
-import { Plus, Trash2, Lock, Unlock, X } from "lucide-react";
+import type { Client, PaymentMethod, Product, Service } from "@/lib/types/database";
+import { Plus, Trash2, Lock, Unlock, X, UserPlus, Check } from "lucide-react";
 
 interface TxRow {
   id: string;
@@ -39,11 +39,13 @@ export function CuadreClient({
   paymentMethods,
   services,
   products,
+  initialClients,
 }: {
   initialDate: string;
   paymentMethods: PaymentMethod[];
   services: Service[];
   products: Product[];
+  initialClients: Client[];
 }) {
   const [date, setDate] = useState(initialDate);
   const [transactions, setTransactions] = useState<TxRow[]>([]);
@@ -58,9 +60,50 @@ export function CuadreClient({
   const [paymentMethodId, setPaymentMethodId] = useState(paymentMethods[0]?.id ?? "");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
-  const [clientName, setClientName] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [items, setItems] = useState<ItemDraft[]>([]);
+
+  const [clients, setClients] = useState<Client[]>(initialClients);
+  const [clientId, setClientId] = useState("");
+  const [clientQuery, setClientQuery] = useState("");
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
+  const [creatingClient, setCreatingClient] = useState(false);
+  const clientBlurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filteredClients = useMemo(() => {
+    const q = clientQuery.trim().toLowerCase();
+    if (!q) return clients.slice(0, 8);
+    return clients.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [clients, clientQuery]);
+
+  const exactClientMatch = clients.find((c) => c.name.toLowerCase() === clientQuery.trim().toLowerCase());
+
+  function selectClient(c: Client) {
+    setClientId(c.id);
+    setClientQuery(c.name);
+    setClientDropdownOpen(false);
+  }
+
+  async function createClientInline() {
+    const name = clientQuery.trim();
+    if (!name) return;
+    setCreatingClient(true);
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "No se pudo crear el cliente");
+      setClients((prev) => [...prev, json.data].sort((a, b) => a.name.localeCompare(b.name)));
+      selectClient(json.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error inesperado creando el cliente");
+    } finally {
+      setCreatingClient(false);
+    }
+  }
 
   const selectedService = services.find((s) => s.id === serviceId);
   // Perforación and Joyería both consume inventory items picked manually below.
@@ -110,7 +153,9 @@ export function CuadreClient({
     setPaymentMethodId(paymentMethods[0]?.id ?? "");
     setCategory("");
     setDescription("");
-    setClientName("");
+    setClientId("");
+    setClientQuery("");
+    setClientDropdownOpen(false);
     setServiceId("");
     setItems([]);
   }
@@ -141,7 +186,8 @@ export function CuadreClient({
           payment_method_id: paymentMethodId || null,
           category: category || null,
           description: description || null,
-          client_name: clientName || null,
+          client_id: clientId || null,
+          client_name: clientId ? null : clientQuery.trim() || null,
           service_id: serviceId || null,
           transaction_date: date,
           items: consumesInventory
@@ -327,9 +373,62 @@ export function CuadreClient({
                   </Select>
                 </div>
               )}
-              <div>
+              <div className="relative">
                 <Label>Cliente (opcional)</Label>
-                <Input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Nombre del cliente" />
+                <div className="relative">
+                  <Input
+                    value={clientQuery}
+                    onChange={(e) => {
+                      setClientQuery(e.target.value);
+                      setClientId("");
+                      setClientDropdownOpen(true);
+                    }}
+                    onFocus={() => setClientDropdownOpen(true)}
+                    onBlur={() => {
+                      // Delay closing so a click on a dropdown option registers first.
+                      clientBlurTimeout.current = setTimeout(() => setClientDropdownOpen(false), 150);
+                    }}
+                    placeholder="Buscar o escribir nombre del cliente"
+                  />
+                  {clientId && (
+                    <Check size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-success" />
+                  )}
+                </div>
+                {clientDropdownOpen && (filteredClients.length > 0 || (clientQuery.trim() && !exactClientMatch)) && (
+                  <div
+                    className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
+                    onMouseDown={(e) => {
+                      // Prevent the input's onBlur from firing before the click is handled.
+                      e.preventDefault();
+                      if (clientBlurTimeout.current) clearTimeout(clientBlurTimeout.current);
+                    }}
+                  >
+                    {filteredClients.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => selectClient(c)}
+                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-surface-2"
+                      >
+                        <span>{c.name}</span>
+                        {c.phone && <span className="text-xs text-muted">{c.phone}</span>}
+                      </button>
+                    ))}
+                    {clientQuery.trim() && !exactClientMatch && (
+                      <button
+                        type="button"
+                        disabled={creatingClient}
+                        onClick={createClientInline}
+                        className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm text-accent hover:bg-surface-2 disabled:opacity-60"
+                      >
+                        <UserPlus size={14} />
+                        {creatingClient
+                          ? "Creando…"
+                          : `Agregar “${clientQuery.trim()}” como cliente nuevo`}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

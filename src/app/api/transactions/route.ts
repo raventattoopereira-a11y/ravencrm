@@ -14,6 +14,7 @@ const bodySchema = z.object({
   payment_method_id: z.string().uuid().nullable().optional(),
   category: z.string().max(120).nullable().optional(),
   description: z.string().max(500).nullable().optional(),
+  client_id: z.string().uuid().nullable().optional(),
   client_name: z.string().max(160).nullable().optional(),
   service_id: z.string().uuid().nullable().optional(),
   transaction_date: z.string(),
@@ -54,8 +55,8 @@ export async function POST(request: NextRequest) {
   }
   const body = parsed.data;
 
-  let clientId: string | null = null;
-  if (body.client_name && body.client_name.trim()) {
+  let clientId: string | null = body.client_id ?? null;
+  if (!clientId && body.client_name && body.client_name.trim()) {
     const name = body.client_name.trim();
     const { data: existing } = await supabase
       .from("clients")
