@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({
   name: z.string().min(1),
-  type: z.enum(["perforacion", "tatuaje", "otro"]),
+  type: z.enum(["perforacion", "tatuaje", "joyeria", "otro"]),
   base_price: z.number().nonnegative().default(0),
 });
 
