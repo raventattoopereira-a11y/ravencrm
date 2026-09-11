@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CRM Estudio | Monteclaro",
+  title: "CRM Estudio | Raven Tattoo Pereira",
   description: "CRM interno — cuadre diario, inventario, servicios y calendario.",
 };
 
