@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button, Card, CardTitle, Input, Label, Select, Badge } from "@/components/ui/primitives";
 import { formatCOP } from "@/lib/utils";
 import type { Service, ServiceType } from "@/lib/types/database";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 const TYPE_LABEL: Record<ServiceType, string> = {
   perforacion: "Perforación",
@@ -16,28 +16,57 @@ const TYPE_LABEL: Record<ServiceType, string> = {
 export function ServiciosClient({ initialServices }: { initialServices: Service[] }) {
   const [services, setServices] = useState(initialServices);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [type, setType] = useState<ServiceType>("perforacion");
   const [basePrice, setBasePrice] = useState("0");
 
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setType("perforacion");
+    setBasePrice("0");
+  }
+
+  function openNew() {
+    resetForm();
+    setShowForm(true);
+  }
+
+  function openEdit(s: Service) {
+    setEditingId(s.id);
+    setName(s.name);
+    setType(s.type);
+    setBasePrice(String(s.base_price));
+    setShowForm(true);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+    const payload = { name, type, base_price: Number(basePrice) };
     try {
-      const res = await fetch("/api/services", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, type, base_price: Number(basePrice) }),
-      });
+      const res = editingId
+        ? await fetch(`/api/services/${editingId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/services", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "No se pudo crear el servicio");
-      setServices((prev) => [...prev, json.data]);
+      if (!res.ok) throw new Error(json.error ?? "No se pudo guardar el servicio");
+      setServices((prev) =>
+        editingId ? prev.map((s) => (s.id === editingId ? json.data : s)) : [...prev, json.data]
+      );
       setShowForm(false);
-      setName("");
-      setBasePrice("0");
+      resetForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -56,6 +85,18 @@ export function ServiciosClient({ initialServices }: { initialServices: Service[
     }
   }
 
+  async function handleDelete(s: Service) {
+    if (!confirm(`¿Eliminar "${s.name}"? Esto no se puede deshacer.`)) return;
+    setError(null);
+    const res = await fetch(`/api/services/${s.id}`, { method: "DELETE" });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(json.error ?? "No se pudo eliminar el servicio");
+      return;
+    }
+    setServices((prev) => prev.filter((it) => it.id !== s.id));
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -65,8 +106,16 @@ export function ServiciosClient({ initialServices }: { initialServices: Service[
             Catálogo usado en el cuadre diario. Los tipos “Perforación” y “Joyería” permiten descontar inventario.
           </p>
         </div>
-        <Button onClick={() => setShowForm((v) => !v)}>
-          <Plus size={16} /> Nuevo servicio
+        <Button
+          onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+            } else {
+              openNew();
+            }
+          }}
+        >
+          <Plus size={16} /> {showForm ? "Cancelar" : "Nuevo servicio"}
         </Button>
       </div>
 
@@ -94,10 +143,22 @@ export function ServiciosClient({ initialServices }: { initialServices: Service[
               <Label>Precio base</Label>
               <Input type="number" min={0} value={basePrice} onChange={(e) => setBasePrice(e.target.value)} />
             </div>
-            <div className="sm:col-span-3">
+            <div className="flex items-end gap-2 sm:col-span-3">
               <Button type="submit" disabled={submitting}>
-                {submitting ? "Guardando…" : "Crear servicio"}
+                {submitting ? "Guardando…" : editingId ? "Guardar cambios" : "Crear servicio"}
               </Button>
+              {editingId && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowForm(false);
+                    resetForm();
+                  }}
+                >
+                  Cancelar edición
+                </Button>
+              )}
             </div>
           </form>
         </Card>
@@ -113,6 +174,7 @@ export function ServiciosClient({ initialServices }: { initialServices: Service[
                 <th className="py-2 pr-3">Tipo</th>
                 <th className="py-2 pr-3">Precio base</th>
                 <th className="py-2 pr-3">Estado</th>
+                <th className="py-2 pr-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -126,11 +188,21 @@ export function ServiciosClient({ initialServices }: { initialServices: Service[
                       <Badge tone={s.is_active ? "success" : "neutral"}>{s.is_active ? "Activo" : "Inactivo"}</Badge>
                     </button>
                   </td>
+                  <td className="py-2 pr-3">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => openEdit(s)} className="text-muted hover:text-foreground">
+                        <Pencil size={15} />
+                      </button>
+                      <button onClick={() => handleDelete(s)} className="text-muted hover:text-accent">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {services.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-6 text-center text-sm text-muted">
+                  <td colSpan={5} className="py-6 text-center text-sm text-muted">
                     Aún no hay servicios. Crea al menos uno de tipo “Perforación”.
                   </td>
                 </tr>
