@@ -1,25 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
-export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/services/[id]">) {
-  const { id } = await ctx.params;
+const schema = z.object({
+  name: z.string().min(1),
+  type: z.enum(["perforacion", "tatuaje", "joyeria", "otro"]),
+  base_price: z.number().nonnegative().default(0),
+});
+
+export async function GET() {
   const supabase = await createClient();
-  const body = await request.json();
-  const { data, error } = await supabase.from("services").update(body).eq("id", id).select("*").single();
+  const { data, error } = await supabase.from("services").select("*").order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data });
 }
 
-export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/services/[id]">) {
-  const { id } = await ctx.params;
+export async function POST(request: NextRequest) {
   const supabase = await createClient();
-  const { error } = await supabase.from("services").delete().eq("id", id);
-  if (error) {
-    // Likely a foreign key violation because this service is referenced by past transactions.
-    const message = error.code === "23503"
-      ? "No se puede eliminar: este servicio ya se usó en movimientos del cuadre. Desactívalo en su lugar."
-      : error.message;
-    return NextResponse.json({ error: message }, { status: 400 });
+  const parsed = schema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }, { status: 400 });
   }
-  return NextResponse.json({ ok: true });
+  const { data, error } = await supabase.from("services").insert(parsed.data).select("*").single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ data }, { status: 201 });
 }
